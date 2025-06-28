@@ -1,0 +1,39 @@
+version: 3
+
+tasks:
+  build:
+    desc: Build the Bitwarden Secrets Manager Docker image
+    cmds:
+      - docker-compose build
+  run:
+    desc: Run the Bitwarden Secrets Manager
+    cmds:
+      - docker-compose up app
+  cli:
+    desc: Run the Bitwarden CLI tool
+    cmds:
+      - docker-compose run --rm cli [your-command-arguments]
+  create-secret:
+    desc: Create a new secret in Bitwarden
+    cmds:
+      - docker-compose run --rm cli create-secret {name} {value} --note "{note}"
+    vaers:
+      name:
+        desc: The name of the secret to create
+        default: "key"
+      value:
+        desc: The value of the secret
+        default: "value"
+      note:
+        desc: An optional note for the secret
+        default: "nota"
+
+# docker-compose run --rm cli list-secrets
+# # Get a specific secret
+# docker-compose run --rm cli get-secret "MY_SECRET_KEY"
+
+# # Create a new secret
+# docker-compose run --rm cli create-secret "NEW_SECRET" "secret_value" --note "Optional note"
+
+# # Sync all secrets to local file
+# docker-compose run --rm cli sync-secrets

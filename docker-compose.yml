@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - BW_ACCESS_TOKEN=${BW_ACCESS_TOKEN}
+      - BW_API_URL=${BW_API_URL:-https://api.bitwarden.com}
+      - BW_IDENTITY_URL=${BW_IDENTITY_URL:-https://identity.bitwarden.com}
+      - ORGANIZATION_ID=${ORGANIZATION_ID}
+      - BW_PROJECT_ID=${BW_PROJECT_ID}
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
+    restart: unless-stopped
+    command: ["python", "api.py"]
+
+  cli:
+    build: .
+    environment:
+      - BW_ACCESS_TOKEN=${BW_ACCESS_TOKEN}
+      - BW_API_URL=${BW_API_URL:-https://api.bitwarden.com}
+      - BW_IDENTITY_URL=${BW_IDENTITY_URL:-https://identity.bitwarden.com}
+      - ORGANIZATION_ID=${ORGANIZATION_ID}
+      - BW_PROJECT_ID=${BW_PROJECT_ID}
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env
+    profiles:
+      - cli
+    entrypoint: ["python", "main.py"]
