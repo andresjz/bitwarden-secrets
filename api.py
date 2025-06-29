@@ -577,6 +577,10 @@ async def sync_secrets():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"Failed to sync secrets: {str(e)}"
         )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Failed to sync secrets: {str(e)}"
+        )
 
 @app.get(
     "/local-secrets",
@@ -591,9 +595,18 @@ async def sync_secrets():
                 "application/json": {
                     "example": {
                         "secrets": {
-                            "database_password": "super_secure_password_123",
-                            "api_key": "sk-1234567890abcdef",
-                            "encryption_key": "base64encodedkey=="
+                            "DATABASE_PASSWORD": {
+                                "key": "DATABASE_PASSWORD",
+                                "value": "super_secure_password_123",
+                                "note": "Database password for production",
+                                "id": "local-DATABASE_PASSWORD"
+                            },
+                            "API_KEY": {
+                                "key": "API_KEY",
+                                "value": "sk-1234567890abcdef",
+                                "note": "API key for external service",
+                                "id": "local-API_KEY"
+                            }
                         }
                     }
                 }
@@ -643,6 +656,10 @@ async def get_local_secrets():
     - Regular synchronization recommended for data freshness
     """
     if secret_manager is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+            detail="Secret manager not initialized"
+        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
             detail="Secret manager not initialized"

@@ -25,7 +25,7 @@ class BitwardenSecretManager:
     
     def __init__(self):
         self.client = None
-        self.local_secrets_file = "data/secrets.json"
+        self.local_secrets_file = "data/secrets.env"
         self._initialize_client()
     
     def _initialize_client(self):
@@ -167,12 +167,22 @@ class BitwardenSecretManager:
             raise
     
     def sync_secrets_to_file(self) -> None:
-        """Sync all secrets to a local JSON file"""
+        """Sync all secrets to a local .env file"""
         try:
             secrets = self.list_secrets()
             
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(self.local_secrets_file), exist_ok=True)
+            
+            # Write secrets in KEY=value format
             with open(self.local_secrets_file, 'w') as f:
-                json.dump(secrets, f, indent=2, default=str)
+                for secret in secrets:
+                    # Write key=value\n
+                    f.write(f"{secret['key']}={secret['value']}\n")
+                    
+                    # Store notes in a comment if they exist
+                    if secret.get('note'):
+                        f.write(f"# Note for {secret['key']}: {secret['note']}\n")
             
             logger.info(f"Successfully synced {len(secrets)} secrets to {self.local_secrets_file}")
             
@@ -181,17 +191,49 @@ class BitwardenSecretManager:
             raise
     
     def load_secrets_from_file(self) -> Dict:
-        """Load secrets from local file"""
+        """Load secrets from local .env file"""
         try:
             if not os.path.exists(self.local_secrets_file):
                 logger.warning(f"Local secrets file {self.local_secrets_file} not found")
                 return {}
             
-            with open(self.local_secrets_file, 'r') as f:
-                secrets = json.load(f)
+            secrets_dict = {}
+            current_key = None
+            current_value = None
+            current_note = ""
             
-            # Convert list to dict for easier lookup
-            secrets_dict = {secret['key']: secret for secret in secrets}
+            with open(self.local_secrets_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    
+                    # Skip empty lines
+                    if not line:
+                        continue
+                    
+                    # Handle comments/notes
+                    if line.startswith('#'):
+                        if "Note for " in line:
+                            note_parts = line.split("Note for ", 1)
+                            if len(note_parts) > 1:
+                                parts = note_parts[1].split(":", 1)
+                                if len(parts) > 1 and parts[0].strip() in secrets_dict:
+                                    secrets_dict[parts[0].strip()]["note"] = parts[1].strip()
+                        continue
+                    
+                    # Handle key=value pairs
+                    if "=" in line:
+                        key, value = line.split("=", 1)
+                        key = key.strip()
+                        value = value.strip()
+                        
+                        # Create entry with key, value and empty note
+                        secrets_dict[key] = {
+                            "key": key,
+                            "value": value,
+                            "note": "",
+                            "id": f"local-{key}"  # Use local- prefix for locally loaded secrets
+                        }
+            
             return secrets_dict
             
         except Exception as e:
