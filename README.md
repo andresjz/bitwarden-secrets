@@ -77,6 +77,7 @@ BW_API_URL=https://api.bitwarden.com
 BW_IDENTITY_URL=https://identity.bitwarden.com
 ORGANIZATION_ID=<your-organization-id>
 BW_PROJECT_ID=<your-project-id>
+API_SECRET_KEY=<your-api-access-key>
 ```
 
 ## Usage
@@ -116,6 +117,15 @@ docker-compose up
 
 The API will be available at `http://localhost:8000`.
 
+**API Documentation:**
+
+The API includes built-in documentation through Swagger UI and ReDoc:
+* Swagger UI: `http://localhost:8000/docs`
+* ReDoc: `http://localhost:8000/redoc`
+* OpenAPI schema: `http://localhost:8000/openapi.json`
+
+These interactive documentation interfaces allow you to explore all endpoints, see request/response schemas, and even test API calls directly from your browser.
+
 **API Endpoints:**
 
 *   `GET /`: Root endpoint with API information
@@ -126,22 +136,32 @@ The API will be available at `http://localhost:8000`.
 *   `POST /sync`: Sync all secrets to local file
 *   `GET /local-secrets`: Get secrets from local file
 
+**API Authentication:**
+
+The API is protected with an API key authentication mechanism. You need to include an `X-API-Key` header in all your requests (except the root endpoint).
+
+To configure the API key:
+1. Set the `API_SECRET_KEY` environment variable in your `.env` file
+2. If not set, a development-only default key will be used (not recommended for production)
+3. Include the API key in your requests as shown in the examples below
+
 **Example API Usage:**
 
 ```bash
 # Get a secret
-curl http://localhost:8000/secrets/MY_SECRET_KEY
+curl -H "X-API-Key: your-api-key" http://localhost:8000/secrets/MY_SECRET_KEY
 
 # Create a new secret
 curl -X POST http://localhost:8000/secrets \
   -H "Content-Type: application/json" \
-  -d '{"key": "NEW_SECRET", "value": "secret_value", "note": "Optional note"}'
+  -H "X-API-Key: your-api-key" \
+  -d '{"secrets": [{"key": "NEW_SECRET", "value": "secret_value", "note": "Optional note"}]}'
 
 # List all secrets
-curl http://localhost:8000/secrets
+curl -H "X-API-Key: your-api-key" http://localhost:8000/secrets
 
 # Sync secrets to local file
-curl -X POST http://localhost:8000/sync
+curl -X POST -H "X-API-Key: your-api-key" http://localhost:8000/sync
 ```
 
 ### Local Development

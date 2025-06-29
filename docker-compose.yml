@@ -11,13 +11,13 @@ services:
       - BW_IDENTITY_URL=${BW_IDENTITY_URL:-https://identity.bitwarden.com}
       - ORGANIZATION_ID=${ORGANIZATION_ID}
       - BW_PROJECT_ID=${BW_PROJECT_ID}
+      - API_SECRET_KEY=${API_SECRET_KEY:-demo}
     volumes:
       - ./data:/app/data
       - ./.env:/app/.env
       - .:/app  # Mount current directory to enable auto-reloading
     restart: unless-stopped
     command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    
   cli:
     build: .
     environment:
@@ -26,6 +26,7 @@ services:
       - BW_IDENTITY_URL=${BW_IDENTITY_URL:-https://identity.bitwarden.com}
       - ORGANIZATION_ID=${ORGANIZATION_ID}
       - BW_PROJECT_ID=${BW_PROJECT_ID}
+      - API_SECRET_KEY=${API_SECRET_KEY:-dev-only-api-key-please-change-in-production}
     volumes:
       - ./data:/app/data
       - ./.env:/app/.env

@@ -5,7 +5,8 @@ FastAPI application for Bitwarden Secret Manager
 import logging
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, status, Path
+from fastapi import FastAPI, HTTPException, status, Path, Depends, Header, Security
+from fastapi.security import APIKeyHeader
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from main import BitwardenSecretManager
@@ -149,6 +150,29 @@ class LocalSecretsResponse(BaseModel):
         description="Secrets loaded from local file storage"
     )
 
+# API authentication configuration
+import os
+
+# Read API key from environment variable, with a fallback default for development
+API_KEY = os.environ.get("API_SECRET_KEY", "dev-only-api-key-please-change-in-production")
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    """Verify the API key provided in the header"""
+    if api_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API Key header is missing",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    if api_key != API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid API Key",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+    return api_key
+
 # Initialize the secret manager
 try:
     secret_manager = BitwardenSecretManager()
@@ -186,6 +210,7 @@ async def root():
     - Basic status confirmation
     
     This endpoint can be used to verify the API is running and accessible.
+    This is the only endpoint that does not require authentication.
     """
     return {"message": "Bitwarden Secret Manager API", "version": "1.0.0"}
 
@@ -214,7 +239,7 @@ async def root():
         }
     }
 )
-async def health_check():
+async def health_check(api_key: str = Depends(verify_api_key)):
     """
     **Health Check Endpoint**
     
@@ -284,7 +309,8 @@ async def get_secret(
         example="database_password",
         min_length=1,
         max_length=100
-    )
+    ),
+    api_key: str = Depends(verify_api_key)
 ):
     """
     **Retrieve a Secret by Name**
@@ -392,7 +418,7 @@ async def get_secret(
         }
     }
 )
-async def create_secret(secret: SecretCreateBatch):
+async def create_secret(secret: SecretCreateBatch, api_key: str = Depends(verify_api_key)):
     """
     **Create New Secrets**
     
@@ -504,7 +530,7 @@ async def create_secret(secret: SecretCreateBatch):
         }
     }
 )
-async def list_secrets():
+async def list_secrets(api_key: str = Depends(verify_api_key)):
     """
     **List All Secrets**
     
@@ -574,7 +600,7 @@ async def list_secrets():
         }
     }
 )
-async def sync_secrets():
+async def sync_secrets(api_key: str = Depends(verify_api_key)):
     """
     **Sync Secrets to Local Storage**
     
@@ -652,7 +678,7 @@ async def sync_secrets():
         }
     }
 )
-async def get_local_secrets():
+async def get_local_secrets(api_key: str = Depends(verify_api_key)):
     """
     **Get Secrets from Local Storage**
     
