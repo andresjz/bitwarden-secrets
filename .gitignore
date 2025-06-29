@@ -52,6 +52,7 @@ ENV/
 # Local secrets storage
 secrets.json
 data/secrets.json
+data/*
 
 # IDE
 .vscode/
@@ -65,3 +66,4 @@ data/secrets.json
 # OS
 .DS_Store
 Thumbs.db
+data/secrets.env

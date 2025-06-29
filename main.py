@@ -25,7 +25,7 @@ class BitwardenSecretManager:
     
     def __init__(self):
         self.client = None
-        self.local_secrets_file = "secrets.json"
+        self.local_secrets_file = "data/secrets.json"
         self._initialize_client()
     
     def _initialize_client(self):
