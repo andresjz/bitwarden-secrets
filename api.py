@@ -138,7 +138,7 @@ class LocalSecretsResponse(BaseModel):
     """Model for local secrets response"""
     secrets: Dict = Field(
         ..., 
-        description="Secrets loaded from local file storage"
+        description="Secrets loaded from local file storage in format {key: {id, key, value, note}}"
     )
 
 # Initialize the secret manager
@@ -656,10 +656,6 @@ async def get_local_secrets():
     - Regular synchronization recommended for data freshness
     """
     if secret_manager is None:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
-            detail="Secret manager not initialized"
-        )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
             detail="Secret manager not initialized"

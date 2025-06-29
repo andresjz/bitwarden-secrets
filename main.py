@@ -174,11 +174,11 @@ class BitwardenSecretManager:
             # Ensure directory exists
             os.makedirs(os.path.dirname(self.local_secrets_file), exist_ok=True)
             
-            # Write secrets in KEY=value format
+            # Write secrets in ID|KEY=value format
             with open(self.local_secrets_file, 'w') as f:
                 for secret in secrets:
-                    # Write key=value\n
-                    f.write(f"{secret['key']}={secret['value']}\n")
+                    # Write id|key=value\n
+                    f.write(f"{secret['id']}|{secret['key']}={secret['value']}\n")
                     
                     # Store notes in a comment if they exist
                     if secret.get('note'):
@@ -198,9 +198,6 @@ class BitwardenSecretManager:
                 return {}
             
             secrets_dict = {}
-            current_key = None
-            current_value = None
-            current_note = ""
             
             with open(self.local_secrets_file, 'r') as f:
                 for line in f:
@@ -220,19 +217,38 @@ class BitwardenSecretManager:
                                     secrets_dict[parts[0].strip()]["note"] = parts[1].strip()
                         continue
                     
-                    # Handle key=value pairs
+                    # Handle id|key=value pairs
                     if "=" in line:
-                        key, value = line.split("=", 1)
-                        key = key.strip()
-                        value = value.strip()
-                        
-                        # Create entry with key, value and empty note
-                        secrets_dict[key] = {
-                            "key": key,
-                            "value": value,
-                            "note": "",
-                            "id": f"local-{key}"  # Use local- prefix for locally loaded secrets
-                        }
+                        # First check if we have the ID|KEY format
+                        if "|" in line.split("=")[0]:
+                            # Parse ID|KEY=VALUE format
+                            id_key_part, value = line.split("=", 1)
+                            secret_id, key = id_key_part.split("|", 1)
+                            
+                            secret_id = secret_id.strip()
+                            key = key.strip()
+                            value = value.strip()
+                            
+                            # Create entry with id, key, value and empty note
+                            secrets_dict[key] = {
+                                "id": secret_id,
+                                "key": key,
+                                "value": value,
+                                "note": ""
+                            }
+                        else:
+                            # Handle legacy format without ID (key=value)
+                            key, value = line.split("=", 1)
+                            key = key.strip()
+                            value = value.strip()
+                            
+                            # Create entry with key, value and empty note
+                            secrets_dict[key] = {
+                                "key": key,
+                                "value": value,
+                                "note": "",
+                                "id": f"local-{key}"  # Use local- prefix for locally loaded secrets
+                            }
             
             return secrets_dict
             
