@@ -62,9 +62,26 @@ The project consists of:
 
 ### Installation
 
+#### Option 1: Build the Docker image locally
+
 1.  Build the Docker image:
     ```bash
     docker-compose build
+    ```
+
+#### Option 2: Use pre-built image from GitHub Packages
+
+1.  Pull the Docker image:
+    ```bash
+    docker pull ghcr.io/[your-github-username]/bitwarden-secrets:latest
+    ```
+
+2.  Update your docker-compose.yml to use the pre-built image:
+    ```yaml
+    services:
+      app:
+        image: ghcr.io/[your-github-username]/bitwarden-secrets:latest
+        # ... rest of your configuration
     ```
 
 ### Configuration
@@ -242,6 +259,38 @@ docker-compose run --rm cli list-secrets
 3. Make your changes
 4. Test thoroughly
 5. Submit a pull request
+
+## CI/CD Pipeline
+
+This project includes a GitHub Actions workflow to automatically build and publish Docker images to GitHub Packages.
+
+### Automatic Builds
+
+The Docker image is automatically built and pushed to GitHub Packages when:
+- Pushing to the main branch
+- Creating and pushing a new tag (starting with "v", e.g., v1.0.0)
+- Manually triggering the workflow
+
+### Manual Trigger
+
+You can manually trigger a build from the Actions tab in your GitHub repository.
+
+### Image Tags
+
+The Docker image is tagged with:
+- The git tag when pushing a tag (e.g., v1.0.0)
+- The branch name when pushing to a branch
+- The short SHA of the commit
+- "latest" when pushing to the main branch
+
+### Using the GitHub Packages Docker Image
+
+To use the pre-built image, you'll need to authenticate with GitHub Packages:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+docker pull ghcr.io/[your-github-username]/bitwarden-secrets:latest
+```
 
 ## License
 
