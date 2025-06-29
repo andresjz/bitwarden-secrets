@@ -59,3 +59,13 @@ tasks:
     vars:
       env_file: '{{default "data/secrets.env" .env_file}}'
       json_file: '{{default "data/secrets1.json" .json_file}}'
+
+  convert-to-json-formatted:
+    desc: Convert secrets from .env to formatted JSON
+    cmds:
+      - docker-compose run --rm cli convert-to-json-formatted --env-file {{.env_file}} --json-file {{.json_file}} --project {{.project}} --env {{.env}}
+    vars:
+      env_file: '{{default "data/PROJECT.env" .env_file}}'
+      json_file: '{{default "data/PROJECT.json" .json_file}}'
+      project: '{{default "PROJECT" .project}}'
+      env: '{{default "DEV" .env}}'

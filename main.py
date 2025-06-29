@@ -306,6 +306,92 @@ def env_to_json(env_file: str, json_file: str) -> None:
         logger.error(f"Error converting from ENV to JSON: {e}")
         raise
 
+def env_to_json_formatted(env_file: str, json_file: str, project: str, env: str) -> None:
+    """
+    Convert from .env format to JSON format with formatted keys
+    
+    This specialized function converts environment variables to Bitwarden secrets 
+    using a formatted key pattern like PROJECT/ENV/VAR_NAME
+    """
+    try:
+        if not os.path.exists(env_file):
+            logger.error(f"ENV file {env_file} not found")
+            return
+        
+        # Normalize project and env names to uppercase
+        project = project.upper()
+        env = env.upper()
+        
+        secrets = []
+        notes_dict = {}
+        current_notes = []
+        
+        with open(env_file, 'r') as f:
+            lines = f.readlines()
+        
+        # First pass: collect all comments as potential notes for the next variable
+        for i, line in enumerate(lines):
+            line = line.strip()
+            
+            # Skip empty lines or // lines (file path comments)
+            if not line or line.startswith('//'):
+                continue
+            
+            # If it's a comment, add it to current notes
+            if line.startswith('#'):
+                current_notes.append(line[1:].strip())
+            # If it's a variable definition
+            elif "=" in line and not line.startswith('#'):
+                key = line.split('=', 1)[0].strip()
+                # Associate notes with this key
+                if current_notes:
+                    notes_dict[key] = "\n".join(current_notes)
+                    current_notes = []  # Reset for next variable
+        
+        # Second pass: process actual variables
+        current_notes = []
+        for line in lines:
+            line = line.strip()
+            
+            # Skip empty lines or // lines
+            if not line or line.startswith('//'):
+                continue
+            
+            # Skip comment lines in this pass
+            if line.startswith('#'):
+                continue
+            
+            # Process key=value lines
+            if "=" in line and not line.startswith('#'):
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                
+                # Format the key as PROJECT/ENV/KEY
+                formatted_key = f"{project}/{env}/{key}"
+                
+                # Create the secret entry
+                secret = {
+                    # "id": f"local-{uuid4()}",
+                    "key": formatted_key,
+                    "value": value,
+                    "note": "Created with Code PROJECT: {}\nENV: {}\n{}".format(project, env, notes_dict.get(key, ""))    
+                }
+                
+                secrets.append(secret)
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(json_file), exist_ok=True)
+        
+        # Write to JSON file
+        with open(json_file, 'w') as f:
+            json.dump(secrets, f, indent=2)
+        
+        logger.info(f"Successfully converted {len(secrets)} secrets from {env_file} to {json_file} with formatted keys")
+    
+    except Exception as e:
+        logger.error(f"Error converting from ENV to JSON with formatted keys: {e}")
+        raise
 # CLI Commands
 @click.group()
 def cli():
@@ -396,6 +482,19 @@ def convert_to_json(env_file, json_file):
     try:
         env_to_json(env_file, json_file)
         click.echo(f"Successfully converted secrets from {env_file} to {json_file}")
+    except Exception as e:
+        click.echo(f"Error: {e}")
+
+@cli.command()
+@click.option('--env-file', default='data/secrets.env', help='Path to the ENV file')
+@click.option('--json-file', default='data/secrets.json', help='Path to the JSON file')
+@click.option('--project', default='MYPROJECT', help='Project name for formatting')
+@click.option('--env', default='DEV', help='Environment name for formatting')
+def convert_to_json_formatted(env_file, json_file, project, env):
+    """Convert secrets from .env to JSON format with formatted keys"""
+    try:
+        env_to_json_formatted(env_file, json_file, project, env)
+        click.echo(f"Successfully converted secrets from {env_file} to {json_file} with formatted keys")
     except Exception as e:
         click.echo(f"Error: {e}")
 

@@ -111,6 +111,14 @@ class SecretResponse(BaseModel):
         example="Production database password for main server"
     )
 
+class SecretCreateBatch(BaseModel):
+    """Model for creating multiple secrets at once"""
+    secrets: List[SecretCreate] = Field(
+        ..., 
+        description="List of secrets to create",
+        min_items=1
+    )
+
 class SecretList(BaseModel):
     """Model for listing multiple secrets"""
     secrets: List[SecretResponse] = Field(
@@ -332,20 +340,30 @@ async def get_secret(
 @app.post(
     "/secrets", 
     tags=["Secrets"],
-    summary="Create New Secret",
-    description="Create a new secret in the Bitwarden vault",
-    response_model=SecretResponse,
+    summary="Create New Secrets",
+    description="Create multiple secrets in the Bitwarden vault",
+    response_model=SecretList,
     status_code=status.HTTP_201_CREATED,
     responses={
         201: {
-            "description": "Secret created successfully",
+            "description": "Secrets created successfully",
             "content": {
                 "application/json": {
                     "example": {
-                        "id": "12345678-1234-1234-1234-123456789abc",
-                        "key": "api_key",
-                        "value": "sk-1234567890abcdef",
-                        "note": "API key for external service"
+                        "secrets": [
+                            {
+                                "id": "12345678-1234-1234-1234-123456789abc",
+                                "key": "api_key",
+                                "value": "sk-1234567890abcdef",
+                                "note": "API key for external service"
+                            },
+                            {
+                                "id": "87654321-4321-4321-4321-cba987654321",
+                                "key": "database_url",
+                                "value": "postgresql://user:pass@localhost/db",
+                                "note": "Development database connection string"
+                            }
+                        ]
                     }
                 }
             }
@@ -374,33 +392,41 @@ async def get_secret(
         }
     }
 )
-async def create_secret(secret: SecretCreate):
+async def create_secret(secret: SecretCreateBatch):
     """
-    **Create a New Secret**
+    **Create New Secrets**
     
-    Adds a new secret to your Bitwarden vault with the specified key, value, and optional note.
+    Adds multiple secrets to your Bitwarden vault with the specified keys, values, and optional notes.
     
     **Request Body:**
-    - `key`: Unique identifier for the secret (required)
-    - `value`: The actual secret value to store (required)
-    - `note`: Optional description or notes about the secret
+    - `secrets`: List of secret objects to create (required)
     
     **Example Request:**
     ```json
     {
-        "key": "api_key",
-        "value": "sk-1234567890abcdef",
-        "note": "API key for external service integration"
+        "secrets": [
+            {
+                "key": "api_key",
+                "value": "sk-1234567890abcdef",
+                "note": "API key for external service"
+            },
+            {
+                "key": "database_url",
+                "value": "postgresql://user:pass@localhost/db",
+                "note": "Development database connection string"
+            }
+        ]
     }
     ```
     
     **Returns:**
-    - Complete information about the created secret including generated ID
+    - List of complete information about all created secrets
     
     **Security Features:**
     - ✅ Validates input data before creation
     - ✅ Encrypts secret values using Bitwarden's security
     - ✅ Generates unique ID for tracking
+    - ✅ Optimized for bulk operations
     """
     if secret_manager is None:
         raise HTTPException(
@@ -408,25 +434,36 @@ async def create_secret(secret: SecretCreate):
             detail="Secret manager not initialized"
         )
     
+    import time
+
     try:
-        created_secret = secret_manager.create_secret(
-            secret.key, 
-            secret.value, 
-            secret.note or ""
-        )
+        created_secrets = []
+        for secret_item in secret.secrets:
+            created_secret = secret_manager.create_secret(
+                secret_item.key,
+                secret_item.value,
+                secret_item.note or ""
+            )
+
+            time.sleep(1)  # Optional: Throttle requests to avoid rate limits
+
+            secret_response = SecretResponse(
+                id=str(created_secret["id"]),
+                key=created_secret["key"],
+                value=created_secret["value"],
+                note=created_secret.get("note", "")
+            )
+            created_secrets.append(secret_response)
         
-        return SecretResponse(
-            id=str(created_secret["id"]), 
-            key=created_secret["key"], 
-            value=created_secret["value"], 
-            note=created_secret.get("note", "")
-        )
+        return SecretList(secrets=created_secrets)
         
     except Exception as e:
-        logger.error(f"Error creating secret '{secret.key}': {e}")
+        # Get the key of the secret that caused the error
+        failed_key = "batch" if not secret.secrets else secret.secrets[0].key
+        logger.error(f"Error creating secrets batch (starting with '{failed_key}'): {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"Failed to create secret: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create secrets batch: {str(e)}"
         )
 
 @app.get(
