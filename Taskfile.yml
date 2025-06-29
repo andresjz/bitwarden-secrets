@@ -43,3 +43,19 @@ tasks:
     desc: Sync all secrets to local file
     cmds:
       - docker-compose run --rm cli sync-secrets
+  
+  convert-to-env:
+    desc: Convert secrets from JSON to .env format
+    cmds:
+      - docker-compose run --rm cli convert-to-env --json-file {{.json_file}} --env-file {{.env_file}}
+    vars:
+      json_file: '{{default "data/secrets.json" .json_file}}'
+      env_file: '{{default "data/secrets1.env" .env_file}}'
+  
+  convert-to-json:
+    desc: Convert secrets from .env to JSON format
+    cmds:
+      - docker-compose run --rm cli convert-to-json --env-file {{.env_file}} --json-file {{.json_file}}
+    vars:
+      env_file: '{{default "data/secrets.env" .env_file}}'
+      json_file: '{{default "data/secrets1.json" .json_file}}'

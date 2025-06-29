@@ -8,6 +8,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
+from uuid import uuid4
 
 import click
 from bitwarden_sdk import BitwardenClient, DeviceType, client_settings_from_dict
@@ -198,6 +199,113 @@ class BitwardenSecretManager:
             logger.error(f"Error loading secrets from file: {e}")
             raise
 
+# Utility functions for converting between JSON and ENV formats
+def json_to_env(json_file: str, env_file: str) -> None:
+    """Convert from JSON format to .env format"""
+    try:
+        # Read the JSON file
+        with open(json_file, 'r') as f:
+            secrets = json.load(f)
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(env_file), exist_ok=True)
+        
+        # Write to .env file
+        with open(env_file, 'w') as f:
+            for secret in secrets:
+                # Write KEY=value
+                f.write(f"{secret['key']}={secret['value']}\n")
+                
+                # If ID exists, write it as a comment
+                if 'id' in secret and secret['id']:
+                    f.write(f"# ID: {secret['id']}\n")
+                
+                # If note exists, write it as a comment
+                if 'note' in secret and secret['note']:
+                    for note_line in secret['note'].split('\n'):
+                        f.write(f"# Note: {note_line}\n")
+                
+                # Add a blank line between entries for readability
+                f.write("\n")
+        
+        logger.info(f"Successfully converted {len(secrets)} secrets from {json_file} to {env_file}")
+    
+    except Exception as e:
+        logger.error(f"Error converting from JSON to ENV: {e}")
+        raise
+
+def env_to_json(env_file: str, json_file: str) -> None:
+    """Convert from .env format to JSON format"""
+    try:
+        if not os.path.exists(env_file):
+            logger.error(f"ENV file {env_file} not found")
+            return
+        
+        secrets = []
+        current_secret = None
+        
+        with open(env_file, 'r') as f:
+            lines = f.readlines()
+        
+        # Process each line
+        for line in lines:
+            line = line.strip()
+            
+            # Skip empty lines
+            if not line:
+                continue
+            
+            # Process key=value lines
+            if "=" in line and not line.startswith('#'):
+                # If we have a current secret, add it to the list
+                if current_secret:
+                    secrets.append(current_secret)
+                
+                # Start a new secret
+                key, value = line.split('=', 1)
+                current_secret = {
+                    "id": "",
+                    "key": key.strip(),
+                    "value": value.strip(),
+                    "note": ""
+                }
+            
+            # Process comment lines
+            elif line.startswith('#'):
+                if current_secret:
+                    # Extract ID from comment
+                    if line.startswith('# ID:'):
+                        current_secret['id'] = line[6:].strip()
+                    
+                    # Extract Note from comment
+                    if line.startswith('# Note:'):
+                        if current_secret['note']:
+                            current_secret['note'] += '\n' + line[7:].strip()
+                        else:
+                            current_secret['note'] = line[7:].strip()
+        
+        # Add the last secret if there is one
+        if current_secret:
+            secrets.append(current_secret)
+        
+        # Generate IDs for any secrets that don't have one
+        for secret in secrets:
+            if not secret['id']:
+                secret['id'] = f"local-{uuid4()}"
+        
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(json_file), exist_ok=True)
+        
+        # Write to JSON file
+        with open(json_file, 'w') as f:
+            json.dump(secrets, f, indent=2)
+        
+        logger.info(f"Successfully converted {len(secrets)} secrets from {env_file} to {json_file}")
+    
+    except Exception as e:
+        logger.error(f"Error converting from ENV to JSON: {e}")
+        raise
+
 # CLI Commands
 @click.group()
 def cli():
@@ -266,6 +374,28 @@ def list_secrets():
         else:
             click.echo("No secrets found")
             
+    except Exception as e:
+        click.echo(f"Error: {e}")
+
+@cli.command()
+@click.option('--json-file', default='data/secrets.json', help='Path to the JSON file')
+@click.option('--env-file', default='data/secrets.env', help='Path to the ENV file')
+def convert_to_env(json_file, env_file):
+    """Convert secrets from JSON to .env format"""
+    try:
+        json_to_env(json_file, env_file)
+        click.echo(f"Successfully converted secrets from {json_file} to {env_file}")
+    except Exception as e:
+        click.echo(f"Error: {e}")
+
+@cli.command()
+@click.option('--env-file', default='data/secrets.env', help='Path to the ENV file')
+@click.option('--json-file', default='data/secrets.json', help='Path to the JSON file')
+def convert_to_json(env_file, json_file):
+    """Convert secrets from .env to JSON format"""
+    try:
+        env_to_json(env_file, json_file)
+        click.echo(f"Successfully converted secrets from {env_file} to {json_file}")
     except Exception as e:
         click.echo(f"Error: {e}")
 
