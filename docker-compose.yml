@@ -1,6 +1,6 @@
 version: '3.8'
 
-services:
+services: 
   app:
     build: .
     ports:
@@ -14,9 +14,10 @@ services:
     volumes:
       - ./data:/app/data
       - ./.env:/app/.env
+      - .:/app  # Mount current directory to enable auto-reloading
     restart: unless-stopped
-    command: ["python", "api.py"]
-
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    
   cli:
     build: .
     environment:
@@ -28,6 +29,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./.env:/app/.env
+      - .:/app  # Mount current directory for consistency
     profiles:
       - cli
     entrypoint: ["python", "main.py"]

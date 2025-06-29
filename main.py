@@ -77,11 +77,12 @@ class BitwardenSecretManager:
             
             # Verify organization access
             try:
-                # Try to list organizations to verify access
-                orgs = self.client.organizations().list()
-                if hasattr(orgs, 'data'):
-                    org_names = [org.name for org in orgs.data.data] if hasattr(orgs.data, 'data') else []
-                    logger.info(f"Access to organizations: {', '.join(org_names) if org_names else 'None'}")
+                # Try to list projects to verify access
+                projects = self.client.projects().list(self.organization_id)
+
+                if hasattr(projects, 'data'):
+                    project_names = [project.name for project in projects.data.data] if hasattr(projects.data, 'data') else []
+                    logger.info(f"Access to projects: {', '.join(project_names) if project_names else 'None'}")
             except Exception as org_e:
                 logger.warning(f"Could not verify organization access: {org_e}")
             
@@ -116,14 +117,12 @@ class BitwardenSecretManager:
         try:
             # Import UUID class
             from uuid import UUID
-            
-            logger.info(f"Creating secret '{secret_name}' for project '{self.project_id}' and organization '{self.organization_id}'")
-
+           
             # Convert string IDs to UUID objects as required by the SDK
             org_id = UUID(self.organization_id)
             project_id = UUID(self.project_id)
             
-            secret = self.client.secrets().create(
+            response = self.client.secrets().create(
                 organization_id=org_id,
                 key=secret_name,
                 value=secret_value,
@@ -131,7 +130,10 @@ class BitwardenSecretManager:
                 project_ids=[project_id],
             )
             
-            logger.info(f"Successfully created secret '{secret_name}'")
+            # Extract the secret from the response
+            secret = response.data
+            
+            logger.info(f"Successfully created secret '{secret_name}' with ID {secret.id}")
             return {
                 "id": secret.id,
                 "key": secret.key,
@@ -140,7 +142,7 @@ class BitwardenSecretManager:
             }
             
         except Exception as e:
-            logger.error(f"Error creating secret '{secret_name}': {e}")
+            logger.error(f"Error creating secret '{secret_name}': {e}  Ensure the token has access to the project to create secrets.")
             raise
     
     def list_secrets(self) -> List[Dict]:

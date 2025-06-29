@@ -29,6 +29,7 @@ The project consists of:
 *   Docker and Docker Compose
 *   Bitwarden account with an organization
 *   Access to Bitwarden Secrets Manager
+*   Ensure the token created has access to the project for read/create
 
 ### Setup Instructions
 
